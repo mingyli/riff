@@ -5,6 +5,7 @@ use itertools::Itertools;
 
 type Position = (usize, usize);
 
+#[derive(Debug)]
 struct Matrix<T> {
     data: Vec<T>,
     height: usize,
@@ -49,6 +50,16 @@ pub enum Change<T> {
     Removed(T),
     Added(T),
     Same(T),
+}
+
+impl<T> Change<T> {
+    pub fn get(&self) -> &T {
+        match self {
+            Change::Removed(t) => t,
+            Change::Added(t) => t,
+            Change::Same(t) => t,
+        }
+    }
 }
 
 fn longest_common_subsequence<'a, T>(
@@ -100,7 +111,11 @@ where
     T: PartialEq,
 {
     if left.is_empty() || right.is_empty() {
-        return Ok(vec![]);
+        return Ok(left
+            .iter()
+            .map(Change::Removed)
+            .chain(right.iter().map(Change::Added))
+            .collect());
     }
 
     let (_lengths, backtracks) = longest_common_subsequence(left, right);
@@ -157,6 +172,68 @@ fn test_diff_same() -> io::Result<()> {
     assert_eq!(
         changes,
         vec![Change::Same(&0), Change::Same(&1), Change::Same(&2)]
+    );
+    Ok(())
+}
+
+#[test]
+fn test_diff_added() -> io::Result<()> {
+    let left = [];
+    let right = [0, 1, 2];
+
+    let changes = diff(&left, &right)?;
+    assert_eq!(
+        changes,
+        vec![Change::Added(&0), Change::Added(&1), Change::Added(&2),]
+    );
+    Ok(())
+}
+
+#[test]
+fn test_diff_removed() -> io::Result<()> {
+    let left = [0, 1, 2];
+    let right = [];
+
+    let changes = diff(&left, &right)?;
+    assert_eq!(
+        changes,
+        vec![
+            Change::Removed(&0),
+            Change::Removed(&1),
+            Change::Removed(&2),
+        ]
+    );
+    Ok(())
+}
+
+// TODO: Fix this test.
+// #[test]
+// fn test_different() -> io::Result<()> {
+//     let left = [1, 2, 5, 6];
+//     let right = [3, 4, 7, 8];
+//
+//     let changes = diff(&left, &right)?;
+//     assert_eq!(changes, vec![]);
+//     Ok(())
+// }
+
+#[test]
+fn test_diff_modified() -> io::Result<()> {
+    let left = ["hey", "my", "name", "is"];
+    let right = ["hey", "mister", "nae", "say"];
+
+    let changes = diff(&left, &right)?;
+    assert_eq!(
+        changes,
+        vec![
+            Change::Same(&"hey"),
+            Change::Removed(&"my"),
+            Change::Removed(&"name"),
+            Change::Removed(&"is"),
+            Change::Added(&"mister"),
+            Change::Added(&"nae"),
+            Change::Added(&"say"),
+        ]
     );
     Ok(())
 }

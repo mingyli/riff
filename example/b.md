@@ -1,13 +1,8 @@
-# Sphinx
-
-## Offer
-
-- Black
-
-> Quartz
-
-### My
-
+Sphinx
+Offer
+Black
+Quartz
+My
 Jughead
-
-1. Vow
+Vow
+Hi

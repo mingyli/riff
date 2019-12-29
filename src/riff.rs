@@ -5,6 +5,9 @@ use std::io::{BufRead, BufReader};
 use clap::{App, Arg};
 
 mod diff;
+mod printer;
+
+use diff::Change;
 
 fn main() -> io::Result<()> {
     let matches = App::new("riff")
@@ -44,7 +47,9 @@ fn main() -> io::Result<()> {
         .map(|line| line.unwrap())
         .collect();
 
-    let diffs = diff::diff(&left_tokens, &right_tokens)?;
-    println!("{:?}", diffs);
+    let changes = diff::diff(&left_tokens, &right_tokens)?;
+
+    printer::print_hunks(&changes);
+
     Ok(())
 }
