@@ -7,6 +7,7 @@ use clap::{App, Arg};
 mod color;
 mod config;
 mod diff;
+mod hunk;
 mod printer;
 
 use config::ConfigBuilder;
