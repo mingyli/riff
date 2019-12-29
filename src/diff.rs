@@ -59,6 +59,24 @@ impl<T> Change<T> {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum ChangeType {
+    Deleted,
+    Added,
+    Changed,
+}
+
+use std::fmt;
+impl fmt::Display for ChangeType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ChangeType::Deleted => write!(f, "d"),
+            ChangeType::Added => write!(f, "a"),
+            ChangeType::Changed => write!(f, "c"),
+        }
+    }
+}
+
 // TODO: Write this function using Rust idioms instead of relying on indexing operations.
 fn longest_common_subsequence<'a, T>(left: &'a [T], right: &'a [T]) -> Matrix<u32>
 where

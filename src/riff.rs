@@ -10,7 +10,6 @@ mod diff;
 mod printer;
 
 use config::ConfigBuilder;
-use diff::Change;
 
 fn main() -> io::Result<()> {
     let matches = App::new("riff")
@@ -81,9 +80,9 @@ fn main() -> io::Result<()> {
     let config = config_builder.build()?;
 
     if matches.is_present("normal") {
-        printer::print_normal_hunks(&config, &changes);
+        printer::print_normal_hunks(&config, &changes)?;
     } else if matches.is_present("unified") {
-        printer::print_unified_diffs(&config, &changes);
+        printer::print_unified_diffs(&config, &changes)?;
     }
 
     Ok(())
