@@ -47,7 +47,7 @@ fn main() -> io::Result<()> {
         .map(|line| line.unwrap())
         .collect();
 
-    let changes = diff::diff(&left_tokens, &right_tokens)?;
+    let changes = diff::diff(&left_tokens, &right_tokens);
 
     printer::print_hunks(&changes);
 

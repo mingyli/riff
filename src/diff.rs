@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::io;
+use std::ops::{Index, IndexMut};
 
 use itertools::Itertools;
 
@@ -11,7 +11,6 @@ struct Matrix<T> {
     height: usize,
     width: usize,
 }
-
 impl<T> Matrix<T>
 where
     T: Clone + Default,
@@ -24,8 +23,6 @@ where
         }
     }
 }
-
-use std::ops::{Index, IndexMut};
 impl<T> Index<Position> for Matrix<T>
 where
     T: Clone,
@@ -62,139 +59,113 @@ impl<T> Change<T> {
     }
 }
 
-fn longest_common_subsequence<'a, T>(
-    left: &'a [T],
-    right: &'a [T],
-) -> (Matrix<u32>, Matrix<Position>)
+// TODO: Write this function using Rust idioms instead of relying on indexing operations.
+fn longest_common_subsequence<'a, T>(left: &'a [T], right: &'a [T]) -> Matrix<u32>
 where
     T: PartialEq,
 {
     use std::cmp;
 
-    let mut lengths: Matrix<u32> = Matrix::new(left.len(), right.len());
-    let mut backtracks: Matrix<(usize, usize)> = Matrix::new(left.len(), right.len());
-    for (l, r) in (0..left.len()).cartesian_product(0..right.len()) {
-        let same = left[l] == right[r];
-
-        lengths[(l, r)] = if (l, r) == (0, 0) {
-            same as u32
-        } else if l == 0 {
-            cmp::max(same as u32, lengths[(l, r - 1)])
-        } else if r == 0 {
-            cmp::max(same as u32, lengths[(l - 1, r)])
-        } else if left[l] == right[r] {
+    let mut lengths: Matrix<u32> = Matrix::new(left.len() + 1, right.len() + 1);
+    for (l, r) in (0..=left.len()).cartesian_product(0..=right.len()) {
+        lengths[(l, r)] = if l == 0 || r == 0 {
+            0
+        } else if left[l - 1] == right[r - 1] {
             lengths[(l - 1, r - 1)] + 1
         } else {
             cmp::max(lengths[(l, r - 1)], lengths[(l - 1, r)])
-        };
-
-        backtracks[(l, r)] = if (l, r) == (0, 0) {
-            (l, r)
-        } else if l == 0 {
-            (l, r - 1)
-        } else if r == 0 {
-            (l - 1, r)
-        } else if left[l] == right[r] {
-            (l - 1, r - 1)
-        } else {
-            *[(l - 1, r), (l, r - 1)]
-                .iter()
-                .max_by_key(|&&pos| lengths[pos])
-                .expect("There are two positions.")
         }
     }
-    (lengths, backtracks)
+    lengths
 }
 
-pub fn diff<'a, T>(left: &'a [T], right: &'a [T]) -> io::Result<Vec<Change<&'a T>>>
+// TODO: Write this function using Rust idioms instead of relying on indexing operations.
+pub fn diff<'a, T>(left: &'a [T], right: &'a [T]) -> Vec<Change<&'a T>>
 where
     T: PartialEq,
 {
     if left.is_empty() || right.is_empty() {
-        return Ok(left
+        return left
             .iter()
             .map(Change::Removed)
             .chain(right.iter().map(Change::Added))
-            .collect());
+            .collect();
     }
 
-    let (_lengths, backtracks) = longest_common_subsequence(left, right);
+    let lengths = longest_common_subsequence(left, right);
 
     let mut result = VecDeque::new();
-    let mut pos: Position = (left.len() - 1, right.len() - 1);
-    loop {
-        let (i, j) = pos;
-        let (bi, bj) = backtracks[pos];
+    let mut pos = (left.len(), right.len());
+    while lengths[pos] > 0 {
+        let (l, r) = pos;
 
-        if pos == (0, 0) {
-            if left[0] == right[0] {
-                result.push_front(Change::Same(&left[0]));
-            } else {
-                result.push_front(Change::Removed(&left[0]));
-                result.push_front(Change::Added(&right[0]));
-            }
-            break;
-        } else if bi + 1 == i && bj + 1 == j {
-            result.push_front(Change::Same(&left[i]));
-        } else if bi + 1 == i {
-            result.push_front(Change::Removed(&left[i]));
-        } else if bj + 1 == j {
-            result.push_front(Change::Added(&right[j]));
+        if lengths[(l - 1, r)] == lengths[pos] - 1
+            && lengths[(l, r - 1)] == lengths[pos] - 1
+            && lengths[(l - 1, r - 1)] == lengths[pos] - 1
+        {
+            result.push_front(Change::Same(&left[l - 1]));
+            pos = (l - 1, r - 1);
+        } else if lengths[(l, r - 1)] < lengths[(l - 1, r)] {
+            result.push_front(Change::Removed(&left[l - 1]));
+            pos = (l - 1, r);
         } else {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Backtracking failed.",
-            ));
+            result.push_front(Change::Added(&right[r - 1]));
+            pos = (l, r - 1);
         }
-
-        pos = backtracks[pos];
+    }
+    while pos != (0, 0) {
+        let (l, r) = pos;
+        if l > 0 {
+            result.push_front(Change::Removed(&left[l - 1]));
+            pos = (l - 1, r);
+        } else {
+            result.push_front(Change::Added(&right[r - 1]));
+            pos = (l, r - 1);
+        }
     }
 
-    Ok(Vec::from(result))
+    Vec::from(result)
 }
 
 #[test]
-fn test_diff_empty() -> io::Result<()> {
+fn test_diff_empty() {
     let left = [0u32; 0];
     let right = [0u32; 0];
 
-    let changes = diff(&left, &right)?;
+    let changes = diff(&left, &right);
     assert_eq!(changes, vec![]);
-    Ok(())
 }
 
 #[test]
-fn test_diff_same() -> io::Result<()> {
+fn test_diff_same() {
     let left = [0, 1, 2];
     let right = [0, 1, 2];
 
-    let changes = diff(&left, &right)?;
+    let changes = diff(&left, &right);
     assert_eq!(
         changes,
         vec![Change::Same(&0), Change::Same(&1), Change::Same(&2)]
     );
-    Ok(())
 }
 
 #[test]
-fn test_diff_added() -> io::Result<()> {
+fn test_diff_added() {
     let left = [];
     let right = [0, 1, 2];
 
-    let changes = diff(&left, &right)?;
+    let changes = diff(&left, &right);
     assert_eq!(
         changes,
         vec![Change::Added(&0), Change::Added(&1), Change::Added(&2),]
     );
-    Ok(())
 }
 
 #[test]
-fn test_diff_removed() -> io::Result<()> {
+fn test_diff_removed() {
     let left = [0, 1, 2];
     let right = [];
 
-    let changes = diff(&left, &right)?;
+    let changes = diff(&left, &right);
     assert_eq!(
         changes,
         vec![
@@ -203,26 +174,48 @@ fn test_diff_removed() -> io::Result<()> {
             Change::Removed(&2),
         ]
     );
-    Ok(())
 }
 
-// TODO: Fix this test.
-// #[test]
-// fn test_different() -> io::Result<()> {
-//     let left = [1, 2, 5, 6];
-//     let right = [3, 4, 7, 8];
-//
-//     let changes = diff(&left, &right)?;
-//     assert_eq!(changes, vec![]);
-//     Ok(())
-// }
+#[test]
+fn test_different() {
+    let left = [1, 2, 3];
+    let right = [2, 3, 4];
+
+    let changes = diff(&left, &right);
+    assert_eq!(
+        changes,
+        vec![
+            Change::Removed(&1),
+            Change::Same(&2),
+            Change::Same(&3),
+            Change::Added(&4),
+        ]
+    );
+}
 
 #[test]
-fn test_diff_modified() -> io::Result<()> {
+fn test_different_reversed() {
+    let left = [2, 3, 4];
+    let right = [1, 2, 3];
+
+    let changes = diff(&left, &right);
+    assert_eq!(
+        changes,
+        vec![
+            Change::Added(&1),
+            Change::Same(&2),
+            Change::Same(&3),
+            Change::Removed(&4),
+        ]
+    );
+}
+
+#[test]
+fn test_diff_modified() {
     let left = ["hey", "my", "name", "is"];
     let right = ["hey", "mister", "nae", "say"];
 
-    let changes = diff(&left, &right)?;
+    let changes = diff(&left, &right);
     assert_eq!(
         changes,
         vec![
@@ -235,15 +228,14 @@ fn test_diff_modified() -> io::Result<()> {
             Change::Added(&"say"),
         ]
     );
-    Ok(())
 }
 
 #[test]
-fn test_diff_mixed() -> io::Result<()> {
+fn test_diff_mixed() {
     let left = ["sphinx", "of", "black", "quartz", "judge", "my", "vow"];
     let right = ["sphinx", "offer", "black", "quartz", "my", "jughead", "vow"];
 
-    let changes = diff(&left, &right)?;
+    let changes = diff(&left, &right);
     assert_eq!(
         changes,
         vec![
@@ -258,5 +250,4 @@ fn test_diff_mixed() -> io::Result<()> {
             Change::Same(&"vow"),
         ]
     );
-    Ok(())
 }
