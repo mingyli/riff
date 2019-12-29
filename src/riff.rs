@@ -49,7 +49,7 @@ fn main() -> io::Result<()> {
 
     let changes = diff::diff(&left_tokens, &right_tokens);
 
-    printer::print_hunks(&changes);
+    printer::print_normal_hunks(&changes);
 
     Ok(())
 }

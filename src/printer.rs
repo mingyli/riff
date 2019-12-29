@@ -1,7 +1,20 @@
+use ansi_term::{Colour, Style};
+
 use crate::Change;
 
-pub fn print_hunks(changes: &[Change<&String>]) {
-    use ansi_term::Colour;
+struct ColorConfig;
+
+impl ColorConfig {
+    fn removed() -> Style {
+        Colour::Black.on(Colour::Red)
+    }
+
+    fn added() -> Style {
+        Colour::Black.on(Colour::Green)
+    }
+}
+
+pub fn print_normal_hunks(changes: &[Change<&String>]) {
     use itertools::{Either, Itertools};
 
     let groups = changes.iter().group_by(|change| match change {
@@ -24,6 +37,7 @@ pub fn print_hunks(changes: &[Change<&String>]) {
                     Change::Added(s) => Either::Right(s),
                     Change::Same(_) => panic!("Change::Same should already be filtered out."),
                 });
+
             let change_type = if !removals.is_empty() && !additions.is_empty() {
                 'c'
             } else if removals.is_empty() {
@@ -31,18 +45,41 @@ pub fn print_hunks(changes: &[Change<&String>]) {
             } else {
                 'd'
             };
-            left_line += removals.len();
-            right_line += additions.len();
-            println!("{}{}{}", left_line, change_type, right_line);
+
+            let left_interval = if removals.is_empty() {
+                (left_line, left_line)
+            } else {
+                (left_line + 1, left_line + removals.len())
+            };
+            let left_format = if left_interval.0 == left_interval.1 {
+                format!("{}", left_interval.0)
+            } else {
+                format!("{},{}", left_interval.0, left_interval.1)
+            };
+            let right_interval = if additions.is_empty() {
+                (right_line, right_line)
+            } else {
+                (right_line + 1, right_line + additions.len())
+            };
+            let right_format = if right_interval.0 == right_interval.1 {
+                format!("{}", right_interval.0)
+            } else {
+                format!("{},{}", right_interval.0, right_interval.1)
+            };
+
+            println!("{}{}{}", left_format, change_type, right_format);
             removals.iter().for_each(|s: &&String| {
-                println!("< {}", Colour::Black.on(Colour::Red).paint(s.as_str()));
+                println!("< {}", ColorConfig::removed().paint(s.as_str()));
             });
             if change_type == 'c' {
                 println!("---");
             }
             additions.iter().for_each(|s: &&String| {
-                println!("> {}", Colour::Black.on(Colour::Green).paint(s.as_str()));
+                println!("> {}", ColorConfig::added().paint(s.as_str()));
             });
+
+            left_line += removals.len();
+            right_line += additions.len();
         }
     }
 }
