@@ -4,6 +4,7 @@ use std::io::{BufRead, BufReader};
 
 use clap::{App, Arg};
 
+mod color;
 mod diff;
 mod printer;
 
@@ -24,6 +25,16 @@ fn main() -> io::Result<()> {
                 .required(true)
                 .help("The file to compare with the base file.")
                 .value_name("FILE2"),
+        )
+        .arg(
+            Arg::with_name("normal")
+                .long("normal")
+                .help("Output a normal diff."),
+        )
+        .arg(
+            Arg::with_name("color")
+                .long("color")
+                .help("Output diff in color."),
         )
         .get_matches();
 
@@ -49,7 +60,15 @@ fn main() -> io::Result<()> {
 
     let changes = diff::diff(&left_tokens, &right_tokens);
 
-    printer::print_normal_hunks(&changes);
+    let color_config = if matches.is_present("color") {
+        color::ColorConfig::colored()
+    } else if matches.is_present("normal") {
+        color::ColorConfig::plain()
+    } else {
+        color::ColorConfig::colored()
+    };
+
+    printer::print_normal_hunks(&color_config, &changes);
 
     Ok(())
 }

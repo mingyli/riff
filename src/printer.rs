@@ -1,20 +1,7 @@
-use ansi_term::{Colour, Style};
-
+use crate::color::ColorConfig;
 use crate::Change;
 
-struct ColorConfig;
-
-impl ColorConfig {
-    fn removed() -> Style {
-        Colour::Black.on(Colour::Red)
-    }
-
-    fn added() -> Style {
-        Colour::Black.on(Colour::Green)
-    }
-}
-
-pub fn print_normal_hunks(changes: &[Change<&String>]) {
+pub fn print_normal_hunks(color_config: &ColorConfig, changes: &[Change<&String>]) {
     use itertools::{Either, Itertools};
 
     let groups = changes.iter().group_by(|change| match change {
@@ -69,13 +56,13 @@ pub fn print_normal_hunks(changes: &[Change<&String>]) {
 
             println!("{}{}{}", left_format, change_type, right_format);
             removals.iter().for_each(|s: &&String| {
-                println!("< {}", ColorConfig::removed().paint(s.as_str()));
+                println!("< {}", color_config.removed.paint(s.as_str()));
             });
             if change_type == 'c' {
                 println!("---");
             }
             additions.iter().for_each(|s: &&String| {
-                println!("> {}", ColorConfig::added().paint(s.as_str()));
+                println!("> {}", color_config.added.paint(s.as_str()));
             });
 
             left_line += removals.len();
