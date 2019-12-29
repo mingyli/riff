@@ -5,9 +5,11 @@ use std::io::{BufRead, BufReader};
 use clap::{App, Arg};
 
 mod color;
+mod config;
 mod diff;
 mod printer;
 
+use config::ConfigBuilder;
 use diff::Change;
 
 fn main() -> io::Result<()> {
@@ -32,22 +34,30 @@ fn main() -> io::Result<()> {
                 .help("Output a normal diff."),
         )
         .arg(
+            Arg::with_name("unified")
+                .long("unified")
+                .short("u")
+                .help("Output a unified diff."),
+        )
+        .arg(
             Arg::with_name("color")
                 .long("color")
                 .help("Output diff in color."),
         )
         .get_matches();
 
-    let left_file = File::open(
-        matches
-            .value_of("left_file")
-            .expect("This argument is required."),
-    )?;
-    let right_file = File::open(
-        matches
-            .value_of("right_file")
-            .expect("This argument is required."),
-    )?;
+    let left_file_name = matches
+        .value_of("left_file")
+        .expect("This argument is required by clap.");
+    let right_file_name = matches
+        .value_of("right_file")
+        .expect("This argument is required by clap.");
+    let left_file = File::open(&left_file_name)?;
+    let right_file = File::open(&right_file_name)?;
+
+    let mut config_builder = ConfigBuilder::new()
+        .with_left_file(&left_file_name)
+        .with_right_file(&right_file_name);
 
     let left_tokens: Vec<String> = BufReader::new(left_file)
         .lines()
@@ -60,15 +70,21 @@ fn main() -> io::Result<()> {
 
     let changes = diff::diff(&left_tokens, &right_tokens);
 
-    let color_config = if matches.is_present("color") {
-        color::ColorConfig::colored()
+    if matches.is_present("color") {
+        config_builder = config_builder.with_colors();
     } else if matches.is_present("normal") {
-        color::ColorConfig::plain()
+        config_builder = config_builder.with_plain_colors();
     } else {
-        color::ColorConfig::colored()
-    };
+        config_builder = config_builder.with_colors();
+    }
 
-    printer::print_normal_hunks(&color_config, &changes);
+    let config = config_builder.build()?;
+
+    if matches.is_present("normal") {
+        printer::print_normal_hunks(&config, &changes);
+    } else if matches.is_present("unified") {
+        printer::print_unified_diffs(&config, &changes);
+    }
 
     Ok(())
 }
